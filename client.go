@@ -89,6 +89,8 @@ type Client struct {
 type ClientWellKnown struct {
 	Homeserver     HomeserverInfo     `json:"m.homeserver"`
 	IdentityServer IdentityServerInfo `json:"m.identity_server"`
+	// raw payload to be able to handle undocumented values
+	raw []byte
 }
 
 type HomeserverInfo struct {
@@ -138,8 +140,31 @@ func DiscoverClientAPI(ctx context.Context, serverName string) (*ClientWellKnown
 	if err != nil {
 		return nil, errors.New(".well-known response not JSON")
 	}
+	wellKnown.raw = data
 
 	return &wellKnown, nil
+}
+
+// Unmarshal unmarshals the raw JSON payload into the provided struct
+//
+//	wk, err := mautrix.DiscoverClientAPI(ctx, "example.com")
+//	if err != nil {
+//		// handle error
+//	}
+//	type mydata struct {
+//		AppURL string `json:"app_url"`
+//	}
+//	var wellKnownData struct {
+//		MyProperty mydata `json:"org.example.custom.property"`
+//	}
+//	if err != wk.Unmarshal(&wellKnownData); err != nil {
+//		// handle error
+//	}
+func (wk ClientWellKnown) Unmarshal(v interface{}) error {
+	if wk.raw == nil {
+		return errors.New("well known not initialized")
+	}
+	return json.Unmarshal(wk.raw, v)
 }
 
 // SetCredentials sets the user ID and access token on this client instance.
